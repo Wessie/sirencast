@@ -1,11 +1,11 @@
 package sirencast
 
-
 import (
-	"net"
 	"errors"
+	"net"
 )
 
+// NewHTTPListener returns a new HTTPListener
 func NewHTTPListener() *HTTPListener {
 	l := &HTTPListener{
 		pipe: make(chan *SirenConn),
@@ -15,21 +15,19 @@ func NewHTTPListener() *HTTPListener {
 		l.pipe <- conn
 	}
 
-	l.Detector = func(input Peeker) ConnHandler {
-		return l.Handler
-	}
-
 	return l
 }
 
+// HTTPListener is a net.Listener that receives connections from
+// the handler `HTTPListener.Handler`.
 type HTTPListener struct {
-	pipe		chan *SirenConn
-	listener 	net.Listener
+	pipe     chan *SirenConn
+	listener net.Listener
 
-	Handler 	ConnHandler
-	Detector 	Detector
+	Handler ConnHandler
 }
 
+// Accept waits for and returns the next connection
 func (l *HTTPListener) Accept() (net.Conn, error) {
 	sc, ok := <-l.pipe
 
@@ -40,18 +38,25 @@ func (l *HTTPListener) Accept() (net.Conn, error) {
 	return sc, nil
 }
 
+// Close is a no-op and always returns nil
 func (l *HTTPListener) Close() error {
 	return nil
 }
 
+// Addr always returns nil
 func (l *HTTPListener) Addr() net.Addr {
-	if l.listener == nil {
-		return &net.TCPAddr{
-			IP: net.IPv4(255, 255, 255, 255),
-			Port: 9999,
-			Zone: "",
-		}
-	}
+	return fakeAddr{network: "process", addr: "internal"}
+}
 
-	return l.listener.Addr()
+type fakeAddr struct {
+	network string
+	addr    string
+}
+
+func (f fakeAddr) Network() string {
+	return f.network
+}
+
+func (f fakeAddr) String() string {
+	return f.addr
 }

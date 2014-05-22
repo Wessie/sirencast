@@ -58,6 +58,10 @@ func (ds *Detectors) Detect(input Peeker) (handler ConnHandler) {
 			break
 		}
 	}
+
+	if handler == nil {
+		return ds.Default
+	}
 	ds.mu.RUnlock()
 
 	return handler
