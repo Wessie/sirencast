@@ -20,7 +20,7 @@ type ConnHandler func(*SirenConn)
 type Detector func(Peeker) ConnHandler
 
 type Detectors struct {
-	sync.RWMutex
+	mu        *sync.RWMutex
 	Detectors []Detector
 	Default   ConnHandler
 }
@@ -28,6 +28,7 @@ type Detectors struct {
 // NewDetectors returns a new *Detectors
 func NewDetectors() *Detectors {
 	return &Detectors{
+		mu:        new(sync.RWMutex),
 		Detectors: make([]Detector, 0),
 	}
 }
@@ -35,9 +36,9 @@ func NewDetectors() *Detectors {
 // Register registers a new detector in the Detectors. The Detector
 // is called when Detect is called.
 func (ds *Detectors) Register(d Detector) {
-	ds.Lock()
+	ds.mu.Lock()
 	ds.Detectors = append(ds.Detectors, d)
-	ds.Unlock()
+	ds.mu.Unlock()
 }
 
 // Detect tries to detect what kind of stream we're receiving
@@ -46,7 +47,7 @@ func (ds *Detectors) Register(d Detector) {
 //
 // Detect returns on the first non-nil return value from a Detector
 func (ds *Detectors) Detect(input Peeker) (handler ConnHandler) {
-	ds.RLock()
+	ds.mu.RLock()
 	for _, d := range ds.Detectors {
 		handler = d(input)
 
@@ -57,7 +58,7 @@ func (ds *Detectors) Detect(input Peeker) (handler ConnHandler) {
 			break
 		}
 	}
-	ds.RUnlock()
+	ds.mu.RUnlock()
 
 	return handler
 }
