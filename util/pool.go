@@ -1,4 +1,4 @@
-package sirencast
+package util
 
 import "sync"
 
