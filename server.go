@@ -4,27 +4,27 @@ import (
 	"errors"
 	"net"
 	"time"
+
+	"github.com/Wessie/sirencast/config"
 )
 
 type Server struct {
-	Environment *Environment
-
+	Config    *config.Config
 	Detectors *Detectors
-
-	listener net.Listener
+	listener  net.Listener
 }
 
-func SetupServer(e *Environment) (*Server, error) {
+func SetupServer(e *config.Config) (*Server, error) {
 	s := &Server{
-		Environment: e,
-		Detectors:   DefaultDetectors,
+		Config:    e,
+		Detectors: DefaultDetectors,
 	}
 
 	return s, nil
 }
 
 func (server *Server) Serve() (err error) {
-	addr, err := net.ResolveTCPAddr("tcp", server.Environment.Server.BindAddress)
+	addr, err := net.ResolveTCPAddr("tcp", server.Config.Addr)
 
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func (server *Server) newConn(c net.Conn) (sc *SirenConn, err error) {
 	return sc, nil
 }
 
-func Run(e *Environment) error {
+func Run(e *config.Config) error {
 	server, err := SetupServer(e)
 
 	if err != nil {

@@ -1,23 +1,16 @@
 package sirencast
 
 import (
+	"errors"
 	"log"
 	"net/http"
+
+	"github.com/Wessie/sirencast/config"
 )
 
-type Environment struct {
-	Server ServerEnvironment
-}
-
-type ServerEnvironment struct {
-	BindAddress string
-}
-
-func Setup() (*Environment, error) {
-	e := &Environment{
-		Server: ServerEnvironment{
-			BindAddress: ":9050",
-		},
+func Setup() (*config.Config, error) {
+	if !config.Loaded {
+		return nil, errors.New("unable to load configuration")
 	}
 
 	// Setup a listener for HTTP requests
@@ -29,5 +22,5 @@ func Setup() (*Environment, error) {
 		}
 	}()
 
-	return e, nil
+	return config.Active, nil
 }
