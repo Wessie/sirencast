@@ -15,8 +15,8 @@ func (c *TestSourceClient) Read(p []byte) (n int, err error) {
 	return c.conn.Read(p)
 }
 
-func EchoDetector(input Peeker) ConnHandler {
-	return func(c *SirenConn) {}
+func EchoDetector(input io.Reader) ConnHandler {
+	return func(c *Conn) {}
 }
 
 func TestDetectorDetect(t *testing.T) {

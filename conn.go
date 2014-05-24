@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// SirenConn wraps a net.Conn to support peeking at the front of the stream.
+// Conn wraps a net.Conn to support peeking at the front of the stream.
 // This is done so that we can detect what kind of content is arriving before
 // giving it off to the correct handler.
-type SirenConn struct {
+type Conn struct {
 	conn   net.Conn
 	peeker Peeker
 
@@ -21,7 +21,7 @@ type SirenConn struct {
 	handler ConnHandler
 }
 
-func (sc *SirenConn) serve() {
+func (sc *Conn) serve() {
 	defer func() {
 		if err := recover(); err != nil {
 			buf := make([]byte, 4096)
@@ -33,7 +33,7 @@ func (sc *SirenConn) serve() {
 	sc.handler(sc)
 }
 
-func (sc *SirenConn) Read(b []byte) (n int, err error) {
+func (sc *Conn) Read(b []byte) (n int, err error) {
 	n, err = sc.reader.Read(b)
 
 	if err != nil {
@@ -55,30 +55,30 @@ func (sc *SirenConn) Read(b []byte) (n int, err error) {
 	return
 }
 
-func (sc *SirenConn) Write(b []byte) (n int, err error) {
+func (sc *Conn) Write(b []byte) (n int, err error) {
 	return sc.conn.Write(b)
 }
 
-func (sc *SirenConn) Close() error {
+func (sc *Conn) Close() error {
 	return sc.conn.Close()
 }
 
-func (sc *SirenConn) LocalAddr() net.Addr {
+func (sc *Conn) LocalAddr() net.Addr {
 	return sc.conn.LocalAddr()
 }
 
-func (sc *SirenConn) RemoteAddr() net.Addr {
+func (sc *Conn) RemoteAddr() net.Addr {
 	return sc.conn.RemoteAddr()
 }
 
-func (sc *SirenConn) SetDeadline(t time.Time) error {
+func (sc *Conn) SetDeadline(t time.Time) error {
 	return sc.conn.SetDeadline(t)
 }
 
-func (sc *SirenConn) SetReadDeadline(t time.Time) error {
+func (sc *Conn) SetReadDeadline(t time.Time) error {
 	return sc.conn.SetReadDeadline(t)
 }
 
-func (sc *SirenConn) SetWriteDeadline(t time.Time) error {
+func (sc *Conn) SetWriteDeadline(t time.Time) error {
 	return sc.conn.SetWriteDeadline(t)
 }

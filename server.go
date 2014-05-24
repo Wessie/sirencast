@@ -25,13 +25,11 @@ func SetupServer(e *config.Config) (*Server, error) {
 
 func (server *Server) Serve() (err error) {
 	addr, err := net.ResolveTCPAddr("tcp", server.Config.Addr)
-
 	if err != nil {
 		return err
 	}
 
 	l, err := net.ListenTCP("tcp", addr)
-
 	if err != nil {
 		return err
 	}
@@ -74,22 +72,31 @@ func (server *Server) Serve() (err error) {
 	return nil
 }
 
-func (server *Server) newConn(c net.Conn) (sc *SirenConn, err error) {
-	sc = &SirenConn{}
+// newConn wraps the given connection into a Conn and tries
+// to find a handler suitable for the connection.
+//
+// newConn will return an error if it is unable to find a handler.
+func (server *Server) newConn(c net.Conn) (*Conn, error) {
+	var (
+		p = NewPeeker(c)
+		h ConnHandler
+	)
 
-	sc.conn = c
-	sc.peeker = NewPeeker(c)
-	sc.reader = sc.peeker
-
-	sc.handler = server.Detectors.Detect(sc.peeker)
-
-	if sc.handler == nil {
+	if h = server.Detectors.Detect(p); h == nil {
 		return nil, errors.New("Unsupported stream")
 	}
 
-	return sc, nil
+	return &Conn{
+		conn:    c,
+		peeker:  p,
+		reader:  p,
+		handler: h,
+	}, nil
 }
 
+// Run runs a sirencast server with the configuration given. This
+// is a blocking function and will return the error returned by
+// SetupServer if any, otherwise it will return the error from Server.Serve
 func Run(e *config.Config) error {
 	server, err := SetupServer(e)
 

@@ -1,17 +1,15 @@
 package sirencast
 
-
 import (
-	"io"
-	"fmt"
-	"time"
-	"testing"
 	"bytes"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+	"time"
 )
-
 
 func TestListenerAcceptance(t *testing.T) {
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -20,12 +18,12 @@ func TestListenerAcceptance(t *testing.T) {
 	server := httptest.NewUnstartedServer(testHandler)
 	defer server.Close()
 
-	listener := NewHTTPListener()
+	listener := NewHTTPListener("internal")
 	server.Listener = listener
 
 	server.Start()
 
-	// Now forge a fake request with a SirenConn
+	// Now forge a fake request with a Conn
 
 	r, err := http.NewRequest("GET", server.URL, nil)
 
@@ -39,7 +37,7 @@ func TestListenerAcceptance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sc := &SirenConn{}
+	sc := &Conn{}
 
 	conn := newFakeConn(t, rb)
 
@@ -62,24 +60,21 @@ func TestListenerAcceptance(t *testing.T) {
 	t.Log(string(buf[:n]))
 }
 
-
 func newFakeConn(t *testing.T, in io.Reader) *fakeConn {
 	return &fakeConn{
-		t: t,
-		in: in,
-		out: bytes.NewBuffer(nil),
+		t:        t,
+		in:       in,
+		out:      bytes.NewBuffer(nil),
 		finished: make(chan bool, 15),
 	}
 }
 
-
 type fakeConn struct {
-	t 		*testing.T
-	in 		io.Reader
-	out     *bytes.Buffer
+	t        *testing.T
+	in       io.Reader
+	out      *bytes.Buffer
 	finished chan bool
 }
-
 
 func (fc *fakeConn) Read(b []byte) (n int, err error) {
 	return fc.in.Read(b)
@@ -99,7 +94,7 @@ func (fc *fakeConn) Close() error {
 func (fc *fakeConn) LocalAddr() net.Addr {
 	fc.t.Log("Local address lookup on fake connection")
 	return &net.TCPAddr{
-		IP: net.IPv4(255, 255, 255, 255),
+		IP:   net.IPv4(255, 255, 255, 255),
 		Port: 9999,
 		Zone: "",
 	}
@@ -108,7 +103,7 @@ func (fc *fakeConn) LocalAddr() net.Addr {
 func (fc *fakeConn) RemoteAddr() net.Addr {
 	fc.t.Log("Remote address lookup on fake connection")
 	return &net.TCPAddr{
-		IP: net.IPv4(255, 255, 255, 255),
+		IP:   net.IPv4(255, 255, 255, 255),
 		Port: 9999,
 		Zone: "",
 	}

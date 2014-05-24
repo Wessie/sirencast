@@ -6,12 +6,13 @@ import (
 )
 
 // NewHTTPListener returns a new HTTPListener
-func NewHTTPListener() *HTTPListener {
+func NewHTTPListener(addr string) *HTTPListener {
 	l := &HTTPListener{
-		pipe: make(chan *SirenConn),
+		pipe: make(chan *Conn),
+		addr: addr,
 	}
 
-	l.Handler = func(conn *SirenConn) {
+	l.Handler = func(conn *Conn) {
 		l.pipe <- conn
 	}
 
@@ -19,10 +20,12 @@ func NewHTTPListener() *HTTPListener {
 }
 
 // HTTPListener is a net.Listener that receives connections from
-// the handler `HTTPListener.Handler`.
+// a ConnHandler rather than from a network listener. The handler
+// should be passed to the appropiate register function by the
+// user.
 type HTTPListener struct {
-	pipe     chan *SirenConn
-	listener net.Listener
+	addr string
+	pipe chan *Conn
 
 	Handler ConnHandler
 }
@@ -45,7 +48,7 @@ func (l *HTTPListener) Close() error {
 
 // Addr always returns nil
 func (l *HTTPListener) Addr() net.Addr {
-	return fakeAddr{network: "process", addr: "internal"}
+	return fakeAddr{network: "internal", addr: l.addr}
 }
 
 type fakeAddr struct {
@@ -58,5 +61,5 @@ func (f fakeAddr) Network() string {
 }
 
 func (f fakeAddr) String() string {
-	return f.addr
+	return "shared(" + f.addr + ")"
 }

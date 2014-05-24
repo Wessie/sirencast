@@ -1,15 +1,16 @@
 package sirencast
 
 import (
+	"io"
 	"sync"
 )
 
 // DefaultDetectors are the global default detectors
 var DefaultDetectors = NewDetectors()
 
-// ConnHandler is a function that can handle a SirenConn, these are returned
+// ConnHandler is a function that can handle a Conn, these are returned
 // by detectors.
-type ConnHandler func(*SirenConn)
+type ConnHandler func(*Conn)
 
 // Detector is a function that should read from the Peeker and determine if it
 // knows a ConnHandler that can handle the stream of data. Returning an appropriate
@@ -17,7 +18,7 @@ type ConnHandler func(*SirenConn)
 //
 // A detector should be reasonably fast in determining if it has a handler available
 // or not due to being the entry-point of all connections.
-type Detector func(Peeker) ConnHandler
+type Detector func(io.Reader) ConnHandler
 
 type Detectors struct {
 	mu        *sync.RWMutex
