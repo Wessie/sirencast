@@ -21,6 +21,8 @@ type Conn struct {
 	handler ConnHandler
 }
 
+// serve calls the appointed handler with sc as argument, it recovers from any panics
+// that occur inside the handler to avoid the whole server going down.
 func (sc *Conn) serve() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -37,19 +39,24 @@ func (sc *Conn) Read(b []byte) (n int, err error) {
 	n, err = sc.reader.Read(b)
 
 	if err != nil {
-		if sc.reader == sc.peeker {
-			sc.reader = sc.conn
-
-			// If we read some bytes before, return those
-			if n > 0 {
-				return
-			}
-
-			// otherwise proxy ourself to the new reader
-			return sc.reader.Read(b)
+		// We're already reading from the net.Conn, so
+		// we can return whatever the net.Conn returned.
+		if sc.reader != sc.peeker {
+			return
 		}
 
-		return
+		// Otherwise we're going to swap to the net.Conn now
+		// and continue reading.
+		sc.reader = sc.conn
+
+		// If we read some bytes before, return those first
+		// before continueing.
+		if n > 0 {
+			return n, nil
+		}
+
+		// otherwise proxy ourself to the new reader
+		return sc.reader.Read(b)
 	}
 
 	return
