@@ -3,14 +3,14 @@ package sirencast
 import (
 	"bytes"
 	"fmt"
-	"io"
-	"net"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
+// TestListenerAcceptance tests the HTTPListener accepting a non-special net.Conn
+// that it was passed by calling (*HTTPListener).Handler
 func TestListenerAcceptance(t *testing.T) {
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Hello world")
@@ -26,20 +26,24 @@ func TestListenerAcceptance(t *testing.T) {
 	// Now forge a fake request with a Conn
 
 	r, err := http.NewRequest("GET", server.URL, nil)
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	rb := bytes.NewBuffer(nil)
-
-	if err = r.Write(rb); err != nil {
+	in := bytes.NewBuffer(nil)
+	if err = r.Write(in); err != nil {
 		t.Fatal(err)
 	}
 
 	sc := &Conn{}
+	out := new(bytes.Buffer)
 
-	conn := newFakeConn(t, rb)
+	conn := &fakeConn{
+		Reader: in,
+		Writer: out,
+		Closer: ioutil.NopCloser(nil),
+		closer: make(chan struct{}),
+	}
 
 	sc.conn = conn
 	sc.reader = conn
@@ -47,76 +51,14 @@ func TestListenerAcceptance(t *testing.T) {
 	listener.Handler(sc)
 
 	// Wait till fake connection is closed
-	<-conn.finished
+	conn.Wait()
 
 	buf := make([]byte, 8096)
 
-	n, err := conn.out.Read(buf)
-
+	n, err := out.Read(buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(string(buf[:n]))
-}
-
-func newFakeConn(t *testing.T, in io.Reader) *fakeConn {
-	return &fakeConn{
-		t:        t,
-		in:       in,
-		out:      bytes.NewBuffer(nil),
-		finished: make(chan bool, 15),
-	}
-}
-
-type fakeConn struct {
-	t        *testing.T
-	in       io.Reader
-	out      *bytes.Buffer
-	finished chan bool
-}
-
-func (fc *fakeConn) Read(b []byte) (n int, err error) {
-	return fc.in.Read(b)
-}
-
-func (fc *fakeConn) Write(b []byte) (n int, err error) {
-	return fc.out.Write(b)
-}
-
-func (fc *fakeConn) Close() error {
-	fc.finished <- true
-
-	fc.t.Log("Closing fake connection")
-	return nil
-}
-
-func (fc *fakeConn) LocalAddr() net.Addr {
-	fc.t.Log("Local address lookup on fake connection")
-	return &net.TCPAddr{
-		IP:   net.IPv4(255, 255, 255, 255),
-		Port: 9999,
-		Zone: "",
-	}
-}
-
-func (fc *fakeConn) RemoteAddr() net.Addr {
-	fc.t.Log("Remote address lookup on fake connection")
-	return &net.TCPAddr{
-		IP:   net.IPv4(255, 255, 255, 255),
-		Port: 9999,
-		Zone: "",
-	}
-}
-
-func (fc *fakeConn) SetDeadline(t time.Time) error {
-	return nil
-}
-
-func (fc *fakeConn) SetReadDeadline(t time.Time) error {
-	return nil
-}
-
-func (fc *fakeConn) SetWriteDeadline(t time.Time) error {
-	return nil
 }
