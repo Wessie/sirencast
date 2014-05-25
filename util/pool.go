@@ -1,3 +1,5 @@
+// +build !go1.3
+
 package util
 
 import "sync"
@@ -5,6 +7,10 @@ import "sync"
 type Pool interface {
 	Get() []byte
 	Put([]byte)
+}
+
+func NewPool() Pool {
+	return NewMutexPool()
 }
 
 type buff struct {
