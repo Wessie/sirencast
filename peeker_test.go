@@ -1,18 +1,22 @@
 package sirencast
 
 import (
-	"testing"
 	"bytes"
-	"reflect"
 	"io"
+	"reflect"
+	"testing"
 )
 
-var test_data = []byte("abcdefghijklmnopqrstuvwxyz")
+var testData = []byte("abcdefghijklmnopqrstuvwxyz")
 
+// TestPeekerReset tests the Reset method on the Peeker type.
+//
+// This does 50 loops and reads 3 bytes each loop. These 3 bytes
+// should equal testData[0:3] on every loop.
 func TestPeekerReset(t *testing.T) {
-	peek := NewPeeker(bytes.NewBuffer(test_data))
-
+	peek := NewPeeker(bytes.NewBuffer(testData))
 	buf := make([]byte, 3)
+	expect := string(testData[0:3])
 
 	for i := 0; i < 50; i++ {
 		_, err := peek.Read(buf)
@@ -21,49 +25,48 @@ func TestPeekerReset(t *testing.T) {
 			t.Fatalf("Error: %s", err)
 		}
 
-		if string(buf) != "abc" {
-			t.Fatalf("Unequal: %v != %v", buf, "abc")
+		if string(buf) != expect {
+			t.Fatalf("Unequal: %v != %v", buf, expect)
 		}
 		peek.Reset()
 	}
 }
 
-
+// TestPeekerStop tests that a Peeker actually stops reading after
+// (Peeker).Stop was called.
 func TestPeekerStop(t *testing.T) {
-	t.Skip()
-
-	peek := NewPeeker(bytes.NewBuffer(test_data))
+	peek := NewPeeker(bytes.NewBuffer(testData[:6]))
 
 	buf := make([]byte, 6)
 
 	n, err := peek.Read(buf)
-
 	if err != nil {
 		t.Error(err)
 	}
 
-	if !reflect.DeepEqual(buf[:n], test_data[:n]) {
-		t.Errorf("Data returned is not equal to input: %v != %v", buf[:n], test_data[:n])
+	if !reflect.DeepEqual(buf[:n], testData[:n]) {
+		t.Errorf("peeker returned invalid data (1): %v != %v", buf[:n], testData[:n])
 	}
 
 	peek.Reset()
 	peek.Stop()
 
 	n, err = peek.Read(buf)
-
 	if err != nil {
-		t.Errorf("Peeker returned error it should not have %s", err)
+		t.Errorf("peeker returned unexpected error: %v", err)
+	} else if string(buf) != string(testData[:n]) {
+		t.Errorf("peeker returned invalid data (2): %v != %v", string(buf), string(testData[:n]))
 	}
 
 	n, err = peek.Read(buf)
-
 	if err != io.EOF {
-		t.Errorf("Peeker did not stop reading after Stop: %v", buf)
+		t.Logf("peeker dump: %+v", peek.(*PeekReader))
+		t.Errorf("peeker did not stop reading after Stop: %v (%d %v)", buf, n, err)
 	}
 }
 
 func BenchmarkPeekerBuffer(b *testing.B) {
-	peeker := NewPeeker(bytes.NewBuffer(test_data))
+	peeker := NewPeeker(bytes.NewBuffer(testData))
 	buf := make([]byte, 6)
 
 	peeker.Read(buf)
@@ -84,7 +87,7 @@ func BenchmarkPeekerWorst(b *testing.B) {
 	var oldpeeker = NewPeeker(nil).(*PeekReader)
 
 	for i := 0; i < b.N; i++ {
-		peeker := NewPeeker(bytes.NewBuffer(test_data))
+		peeker := NewPeeker(bytes.NewBuffer(testData))
 
 		// Steal the buffer from the previous peeker, otherwise
 		// we allocate a lot of memory that isn't realistic in
