@@ -12,8 +12,10 @@ import (
 // This is done so that we can detect what kind of content is arriving before
 // giving it off to the correct handler.
 type Conn struct {
-	conn   net.Conn
-	peeker Peeker
+	conn net.Conn
+	// start is the reader used for recovering the start of the stream. This
+	// reader will be exhausted before continueing to read from `conn`.
+	start io.Reader
 
 	// reader is the current reader to read from, either `conn` or `peeker`
 	reader io.Reader
@@ -41,7 +43,7 @@ func (sc *Conn) Read(b []byte) (n int, err error) {
 	if err != nil {
 		// We're already reading from the net.Conn, so
 		// we can return whatever the net.Conn returned.
-		if sc.reader != sc.peeker {
+		if sc.reader != sc.start {
 			return
 		}
 

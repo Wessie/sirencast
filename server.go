@@ -88,7 +88,7 @@ func (server *Server) newConn(c net.Conn) (*Conn, error) {
 
 	return &Conn{
 		conn:    c,
-		peeker:  p,
+		start:   p,
 		reader:  p,
 		handler: h,
 	}, nil
