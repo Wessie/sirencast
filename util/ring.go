@@ -5,12 +5,14 @@ import "io"
 type RingBuffer struct {
 	readCache []byte
 	buf       chan []byte
+	pool      Pool
 	dropped   uint64
 }
 
 func NewRingBuffer(size int) *RingBuffer {
 	return &RingBuffer{
-		buf: make(chan []byte, size),
+		buf:  make(chan []byte, size),
+		pool: NewPool(),
 	}
 }
 
@@ -21,14 +23,17 @@ func (r *RingBuffer) Write(b []byte) (n int, err error) {
 		return 0, nil
 	}
 
+	c := append(r.pool.Get()[:0], b...)
+
 loop:
 	for {
 		select {
-		case r.buf <- b:
+		case r.buf <- c:
 			break loop
 		default:
 			select {
-			case <-r.buf:
+			case c := <-r.buf:
+				r.pool.Put(c)
 			default:
 			}
 		}

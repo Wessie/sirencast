@@ -21,9 +21,7 @@ type buff struct {
 func NewMutexPool() Pool {
 	return &MutexPool{
 		head: nil,
-		New: func() []byte {
-			return make([]byte, 4096)
-		},
+		New:  nil,
 	}
 }
 

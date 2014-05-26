@@ -11,6 +11,7 @@ import (
 
 func TestPoolNew(t *testing.T) {
 	p := NewMutexPool()
+	p.(*MutexPool).New = func() []byte { return make([]byte, 4096) }
 
 	if p.Get() == nil {
 		t.Fatal("Expected new slice")

@@ -50,6 +50,25 @@ func TestRingWriteNonBlocking(t *testing.T) {
 	}
 }
 
+func TestRingWriteCopying(t *testing.T) {
+	var (
+		testValue  = []byte("Hello")
+		testResult = make([]byte, len(testValue))
+		r          = NewRingBuffer(2)
+	)
+
+	wCopy := append([]byte(nil), testValue...)
+	r.Write(wCopy)
+	copy(wCopy, []byte("World"))
+
+	if _, err := r.Read(testResult); err != nil {
+		t.Error("read returned an error:", err)
+	} else if string(testResult) != string(testValue) {
+		t.Log(testValue, testResult)
+		t.Error("write did not copy input, internals got modified")
+	}
+}
+
 // TestWriteNonBlocking tests that the buffer drops from the head and
 // in a consistent manner
 func TestRingWriteDropBehaviour(t *testing.T) {
