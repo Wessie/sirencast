@@ -2,3 +2,6 @@ language: go
 go:
         - 1.2
         - tip
+
+before_script:
+        - go list -json
