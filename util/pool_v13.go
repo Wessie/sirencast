@@ -22,7 +22,12 @@ type ByteSlicePool struct {
 }
 
 func (p *ByteSlicePool) Get() []byte {
-	return p.pool.Get().([]byte)
+	b := p.pool.Get()
+	if b == nil {
+		return nil
+	}
+
+	return b.([]byte)
 }
 
 func (p *ByteSlicePool) Put(b []byte) {
