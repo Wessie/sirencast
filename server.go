@@ -33,6 +33,7 @@ func (server *Server) Serve() (err error) {
 	if err != nil {
 		return err
 	}
+	defer l.Close()
 
 	server.listener = l
 
@@ -53,10 +54,9 @@ func (server *Server) Serve() (err error) {
 				}
 
 				time.Sleep(tempDelay)
-			} else {
-				// Unrecoverable
-				return err
 			}
+			// Unrecoverable
+			return err
 		}
 
 		c, err := server.newConn(conn)
@@ -68,8 +68,6 @@ func (server *Server) Serve() (err error) {
 
 		go c.serve()
 	}
-
-	return nil
 }
 
 // newConn wraps the given connection into a Conn and tries
