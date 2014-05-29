@@ -22,12 +22,17 @@ type SourceID struct {
 }
 
 func NewSource(rwc io.ReadWriteCloser, r *http.Request) *Source {
-	return &Source{rwc, r}
+	return &Source{
+		ReadWriteCloser: rwc,
+		req:             r,
+	}
 }
 
 type Source struct {
 	io.ReadWriteCloser
 	req *http.Request
+
+	Name string
 }
 
 func (s *Source) ID() SourceID {

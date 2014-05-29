@@ -4,6 +4,7 @@ import "sync"
 
 const DefaultPriority = 0
 
+// NewContainer returns a new container.
 func NewContainer() *Container {
 	return &Container{
 		mu:         new(sync.Mutex),
@@ -13,6 +14,8 @@ func NewContainer() *Container {
 	}
 }
 
+// Container is a container for mountpoint sources, it acts similar
+// to a priority queue.
 type Container struct {
 	mu         *sync.Mutex
 	names      map[string]*Source
@@ -22,19 +25,19 @@ type Container struct {
 
 // Add adds a source with name given and the default priority.
 // Names are not required to be unique per source.
-func (c *Container) Add(name string, s *Source) {
-	c.AddPriority(name, s, DefaultPriority)
+func (c *Container) Add(s *Source) {
+	c.AddPriority(s, DefaultPriority)
 }
 
 // AddPriority adds a source with name and priority given.
 // Names are not required to be unique per source.
-func (c *Container) AddPriority(name string, s *Source, priority int) {
+func (c *Container) AddPriority(s *Source, priority int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// We can add the name directly, since we dont guarantee all sources to
 	// persist when added to it by name.
-	c.names[name] = s
+	c.names[s.Name] = s
 
 	for i, p := range c.priorities {
 		if p == priority {
@@ -52,6 +55,41 @@ func (c *Container) AddPriority(name string, s *Source, priority int) {
 		c.priorities[i] = priority
 
 		c.queue[priority] = []*Source{s}
+	}
+}
+
+func (c *Container) Remove(s *Source) {
+	c.RemovePriority(s, DefaultPriority)
+}
+
+func (c *Container) RemovePriority(source *Source, prio int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// We only delete from the name mapping if the name actually
+	// still points to the source we were asked to remove.
+	ns, ok := c.names[source.Name]
+	if ok && ns == source {
+		delete(c.names, source.Name)
+	}
+
+	slc := c.queue[prio]
+	for i, s := range slc {
+		if s != source {
+			continue
+		}
+
+		slc = append(slc[:i], slc[i+1:]...)
+	}
+	c.queue[prio] = slc
+
+	for i, p := range c.priorities {
+		if p != prio {
+			continue
+		}
+
+		c.priorities = append(c.priorities[:i], c.priorities[i+1:]...)
+		break
 	}
 }
 
