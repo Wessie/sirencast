@@ -1,56 +1,25 @@
 package icecast
 
-import (
-	"io"
-	"net/http"
-)
-
-func NewSourceID(r *http.Request) SourceID {
-	id := SourceID{}
-
-	if r.URL.Path == "/admin/metadata" || r.URL.Path == "/admin/listclients" {
-		id.Mount = r.URL.Query().Get("mount")
-	} else {
-		id.Mount = r.URL.Path
-	}
-
-	return id
-}
-
-type SourceID struct {
-	Mount string
-}
-
-func NewSource(rwc io.ReadWriteCloser, r *http.Request) *Source {
-	return &Source{
-		ReadWriteCloser: rwc,
-		req:             r,
-	}
-}
-
-type Source struct {
-	io.ReadWriteCloser
-	req *http.Request
-
-	Name string
-}
-
-func (s *Source) ID() SourceID {
-	return NewSourceID(s.req)
-}
-
+// Mount depicts a singular icecast mountpoint. A mountpoint can have
+// many clients (same as plain icecast) and have many sources (not the
+// same as icecast).
 type Mount struct {
-	Name string
+	Name    string
+	sources *Container
 }
 
 func NewMount(name string) *Mount {
 	return &Mount{
-		Name: name,
+		Name:    name,
+		sources: NewContainer(),
 	}
 }
 
+// AddSource adds a new source to the mountpoint, the mountpoint will
+// be responsible for directing the source to the correct output until
+// the source is removed or disconnects.
 func (m *Mount) AddSource(s *Source) {
-	return
+	m.sources.Add(s)
 }
 
 // SetMetadata sets the metadata of the source bound to the given
