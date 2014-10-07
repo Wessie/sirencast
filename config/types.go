@@ -7,8 +7,8 @@ type Config struct {
 	// the streaming component and optionally for the HTTP server
 	// if no alternative address is used and the HTTP server isn't
 	// disabled.
-	Addr       string `json:"address"`
-	HTTPServer `json:"http_server"`
+	Addr string     `json:"address"`
+	HTTP HTTPServer `json:"http_server"`
 }
 
 // HTTPServer is an optional configuration for the HTTP server included

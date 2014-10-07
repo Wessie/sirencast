@@ -2,7 +2,7 @@ package config
 
 var Default = Config{
 	Addr: "localhost:9050",
-	HTTPServer: HTTPServer{
+	HTTP: HTTPServer{
 		Disabled: false,
 		Addr:     "",
 	},

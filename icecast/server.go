@@ -13,6 +13,13 @@ import (
 	"github.com/Wessie/sirencast/util/taxtic"
 )
 
+func NewServer() *Server {
+	return &Server{
+		mu:     new(sync.RWMutex),
+		mounts: make(map[string]*Mount),
+	}
+}
+
 type Server struct {
 	mu     *sync.RWMutex
 	mounts map[string]*Mount
@@ -45,23 +52,26 @@ func (s *Server) SourceHandler(conn *sirencast.Conn) {
 
 	line, err := b.ReadString('\n')
 	if err != nil {
+		log.Println("source: invalid http request")
 		// TODO: Log errors
 		return
 	}
 
 	method, uri, proto, ok := parseRequestLine(line)
 	if !ok {
+		log.Println("source: invalid http request line")
 		// TODO: Log errors
 		return
 	}
 
 	if method != "SOURCE" {
-		log.Println("panic: SourceHandler received non-SOURCE request")
+		log.Println("source: received non-source method request.")
 		return
 	}
 
 	u, err := url.ParseRequestURI(uri)
 	if err != nil {
+		log.Println("source: invalid http request uri: ", err)
 		// TODO: Log errors
 		return
 	}
@@ -69,6 +79,7 @@ func (s *Server) SourceHandler(conn *sirencast.Conn) {
 	tp := textproto.NewReader(b.Reader)
 	mimeHeader, err := tp.ReadMIMEHeader()
 	if err != nil {
+		log.Println("source: invalid http headers: ", err)
 		// TODO: Log errors
 		return
 	}
@@ -137,6 +148,14 @@ func (s *Server) MetadataHandler(conn *sirencast.Conn) {
 }
 
 func (s *Server) ClientHandler(conn *sirencast.Conn) {
+	b := bufio.NewReader(conn)
+	r, err := http.ReadRequest(b)
+	if err != nil {
+		log.Println("icecast: client init failure:", err)
+		return
+	}
+
+	_ = r
 	return
 }
 

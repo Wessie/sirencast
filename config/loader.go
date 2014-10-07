@@ -24,8 +24,10 @@ var Loaded = false
 
 func init() {
 	flag.StringVar(&Filename, "conf", DefaultFilename, "configuration file to load")
-	allowDefault := flag.Bool("default", false, "allow default configuration to be used if no file could be loaded")
-	writeDefault := flag.Bool("write-default", false, "write the default configuration to the specified `conf` filename if unable to load it")
+	allowDefault := flag.Bool("default", false,
+		"allow default configuration to be used if no file could be loaded")
+	writeDefault := flag.Bool("write-default", false,
+		"write the default configuration to the specified `conf` filename if unable to load it")
 	flag.Parse()
 
 	f, err := os.Open(Filename)

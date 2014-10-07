@@ -8,7 +8,7 @@ const DefaultPriority = 0
 func NewContainer() *Container {
 	return &Container{
 		mu:         new(sync.Mutex),
-		names:      make(map[string]*Source, 8),
+		names:      make(map[string][]*Source, 8),
 		priorities: make([]int, 2),
 		queue:      make(map[int][]*Source, 2),
 	}
@@ -18,13 +18,12 @@ func NewContainer() *Container {
 // to a priority queue.
 type Container struct {
 	mu         *sync.Mutex
-	names      map[string]*Source
+	names      map[string][]*Source
 	priorities []int
 	queue      map[int][]*Source
 }
 
-// Add adds a source with name given and the default priority.
-// Names are not required to be unique per source.
+// Add adds a source with the default priority.
 func (c *Container) Add(s *Source) {
 	c.AddPriority(s, DefaultPriority)
 }
@@ -37,7 +36,7 @@ func (c *Container) AddPriority(s *Source, priority int) {
 
 	// We can add the name directly, since we dont guarantee all sources to
 	// persist when added to it by name.
-	c.names[s.Name] = s
+	c.names[s.Name] = append(c.names[s.Name], s)
 
 	for i, p := range c.priorities {
 		if p == priority {
@@ -68,9 +67,26 @@ func (c *Container) RemovePriority(source *Source, prio int) {
 
 	// We only delete from the name mapping if the name actually
 	// still points to the source we were asked to remove.
-	ns, ok := c.names[source.Name]
-	if ok && ns == source {
-		delete(c.names, source.Name)
+	ns := c.names[source.Name]
+	for i, s := range ns {
+		if s != source {
+			continue
+		}
+
+		// check for excessive amount of extra space
+		// TODO: Move this to a general book keeping method instead
+		if cap(ns) > 16 && cap(ns)/2 > len(ns) {
+			nw := make([]*Source, len(ns)-1, len(ns))
+
+			copy(nw, ns[:i])
+			copy(nw[i:], ns[i+1:])
+			ns = nw
+		} else {
+			copy(ns[i:], ns[i+1:])
+			ns = ns[:len(ns)-1]
+		}
+
+		c.names[source.Name] = ns
 	}
 
 	slc := c.queue[prio]
@@ -137,5 +153,9 @@ func (c *Container) GetByName(name string) *Source {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return c.names[name]
+	ns := c.names[name]
+	if len(ns) == 0 {
+		return nil
+	}
+	return ns[len(ns)-1]
 }

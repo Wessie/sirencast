@@ -9,6 +9,10 @@ import (
 	"github.com/Wessie/sirencast"
 )
 
+func init() {
+	//	sirencast.RegisterDetector(Detect)
+}
+
 func (s *Server) Detect(r io.Reader) sirencast.ConnHandler {
 	// TODO: Optimize this, the bufio.Reader is a bit heavy
 	b := bufio.NewReader(r)

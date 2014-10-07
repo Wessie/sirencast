@@ -35,7 +35,7 @@ func (l *HTTPListener) Accept() (net.Conn, error) {
 	sc, ok := <-l.pipe
 
 	if !ok {
-		return nil, errors.New("Closed listener pipe")
+		return nil, errors.New("closed listener pipe")
 	}
 
 	return sc, nil
@@ -46,7 +46,6 @@ func (l *HTTPListener) Close() error {
 	return nil
 }
 
-// Addr always returns nil
 func (l *HTTPListener) Addr() net.Addr {
 	return fakeAddr{network: "internal", addr: l.addr}
 }
