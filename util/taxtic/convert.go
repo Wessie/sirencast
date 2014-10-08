@@ -34,9 +34,9 @@ func Convert(charset, s string) (string, error) {
 
 	d := e.NewDecoder()
 
-	res := transform.Bytes(d, []byte(s))
-	if res == nil {
-		return "", ErrUnrecoverable
+	res, _, err := transform.Bytes(d, []byte(s))
+	if err != nil {
+		return "", err
 	}
 
 	return string(res), nil
