@@ -1,62 +1,24 @@
-// +build !go1.3
-
 package util
 
 import "sync"
 
-type Pool interface {
-	Get() []byte
-	Put([]byte)
-}
-
-func NewPool() Pool {
-	return NewMutexPool()
-}
-
-type buff struct {
-	next *buff
-	buf  []byte
-}
-
-func NewMutexPool() Pool {
-	return &MutexPool{
-		head: nil,
-		New:  nil,
-	}
-}
-
-type MutexPool struct {
-	sync.Mutex
-
-	head *buff
-	New  func() []byte
-}
-
-func (p *MutexPool) Get() (b []byte) {
-	p.Lock()
-	defer p.Unlock()
-
-	// Return nil if we have nothing
-	b = nil
-
-	if p.head == nil && p.New != nil {
-		b = p.New()
-	} else if p.head != nil {
-		b = p.head.buf
-		p.head = p.head.next
+func NewByteSlicePool(size int) *ByteSlicePool {
+	p := new(sync.Pool)
+	p.New = func() interface{} {
+		return make([]byte, size)
 	}
 
-	return b
+	return &ByteSlicePool{p}
 }
 
-func (p *MutexPool) Put(b []byte) {
-	p.Lock()
-	defer p.Unlock()
+type ByteSlicePool struct {
+	pool *sync.Pool
+}
 
-	buf := &buff{
-		next: p.head,
-		buf:  b[:0],
-	}
+func (p *ByteSlicePool) Get() []byte {
+	return p.pool.Get().([]byte)
+}
 
-	p.head = buf
+func (p *ByteSlicePool) Put(b []byte) {
+	p.pool.Put(b)
 }
