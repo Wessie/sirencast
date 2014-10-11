@@ -1,5 +1,7 @@
 package icecast
 
+import "log"
+
 // Mount depicts a singular icecast mountpoint. A mountpoint can have
 // many clients (same as plain icecast) and have many sources (not the
 // same as icecast).
@@ -19,6 +21,7 @@ func NewMount(name string) *Mount {
 // be responsible for directing the source to the correct output until
 // the source is removed or disconnects.
 func (m *Mount) AddSource(s *Source) {
+	m.log("adding source: %v", s)
 	m.sources.Add(s)
 }
 
@@ -26,5 +29,11 @@ func (m *Mount) AddSource(s *Source) {
 // SourceID. Setting an empty string means deleting the current
 // metadata.
 func (m *Mount) SetMetadata(id SourceID, metadata string) {
+	m.log("setting metadata: id: %s meta: %s", id, metadata)
 	return
+}
+
+func (m *Mount) log(f string, args ...interface{}) {
+	f = "icecast.mount." + m.Name + ": " + f
+	log.Printf(f, args...)
 }

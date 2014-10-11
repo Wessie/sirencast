@@ -3,6 +3,7 @@ package icecast
 import (
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 )
@@ -25,11 +26,16 @@ func NewSourceID(r *http.Request) SourceID {
 		id.Mount = r.URL.Path
 	}
 
+	if h, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		id.Host = h
+	}
+
 	return id
 }
 
 type SourceID struct {
 	Mount string
+	Host  string
 }
 
 func NewSource(rwc io.ReadWriteCloser, r *http.Request) *Source {

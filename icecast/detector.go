@@ -3,6 +3,7 @@ package icecast
 import (
 	"bufio"
 	"io"
+	"log"
 	"net/url"
 	"strings"
 
@@ -18,11 +19,13 @@ func (s *Server) Detect(r io.Reader) sirencast.ConnHandler {
 	b := bufio.NewReader(r)
 	line, err := b.ReadString('\n')
 	if err != nil {
+		log.Println("icecast.detector: failed to read first line:", err)
 		return nil
 	}
 
 	method, uri, _, ok := parseRequestLine(line)
 	if !ok {
+		log.Println("icecast.detector: failed to parse request line")
 		return nil
 	}
 

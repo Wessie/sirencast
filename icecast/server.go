@@ -13,6 +13,10 @@ import (
 	"github.com/Wessie/sirencast/util/taxtic"
 )
 
+const metadataSuccess = `<?xml version="1.0"?>
+<iceresponse><message>Metadata update successful</message><return>1</return></iceresponse>
+`
+
 func NewServer() *Server {
 	return &Server{
 		mu:     new(sync.RWMutex),
@@ -44,7 +48,7 @@ func (s *Server) SourceHandler(conn *sirencast.Conn) {
 	//
 	// Instead we parse the first line ourself, and construct a http.Request
 	// from this.
-	b := &ReadWriteCloser{
+	b := ReadWriteCloser{
 		Reader: bufio.NewReader(conn),
 		Writer: bufio.NewWriter(conn),
 		Closer: conn,
@@ -103,9 +107,13 @@ func (s *Server) SourceHandler(conn *sirencast.Conn) {
 		req.Host = req.Header.Get("Host")
 	}
 
-	if err := WriteHeader(b, req.Header, http.StatusOK); err != nil {
-		// TODO: Log errors
+	if err := WriteHeader(b, nil, http.StatusOK); err != nil {
+		log.Println("icecast.source: failed to write OK header:", err)
 		return
+	}
+
+	if err := b.Flush(); err != nil {
+		log.Println("icecast.source: failed to flush header:", err)
 	}
 
 	s.Mount(u.Path).AddSource(NewSource(b, req))
@@ -113,14 +121,18 @@ func (s *Server) SourceHandler(conn *sirencast.Conn) {
 }
 
 func (s *Server) MetadataHandler(conn *sirencast.Conn) {
-	b := bufio.NewReader(conn)
-	r, err := http.ReadRequest(b)
+	r, err := ReadRequest(conn)
 	if err != nil {
-		// TODO: Log errors
+		log.Println("icecast.metadata: failed to construct request:", err)
 		return
 	}
 
 	query := r.URL.Query()
+
+	mount := query.Get("mount")
+	if mount == "" {
+		return
+	}
 
 	metadata := query.Get("song")
 	if metadata == "" {
@@ -137,21 +149,34 @@ func (s *Server) MetadataHandler(conn *sirencast.Conn) {
 
 	metadata, err = taxtic.Convert(charset, metadata)
 	if err != nil {
-		// TODO: Log errors
+		log.Println("icecast.metadata: failed to convert metadata to utf8:", err)
 		return
 	}
 
 	id := NewSourceID(r)
 
-	s.Mount(r.URL.Path).SetMetadata(id, metadata)
+	s.Mount(mount).SetMetadata(id, metadata)
+
+	h := http.Header{
+		"Content-Type":   {"text/xml"},
+		"Content-Length": {"113"},
+	}
+
+	// now send back a xml "success" response
+	if err := WriteHeader(conn, h, http.StatusOK); err != nil {
+		log.Println("icecast.metadata: failed to write http header response:", err)
+	}
+
+	if _, err := io.WriteString(conn, metadataSuccess); err != nil {
+		log.Println("icecast.metadata: failed to write xml success response:", err)
+	}
 	return
 }
 
 func (s *Server) ClientHandler(conn *sirencast.Conn) {
-	b := bufio.NewReader(conn)
-	r, err := http.ReadRequest(b)
+	r, err := ReadRequest(conn)
 	if err != nil {
-		log.Println("icecast: client init failure:", err)
+		log.Println("icecast.client: failed to read http request:", err)
 		return
 	}
 
@@ -164,6 +189,8 @@ func (s *Server) ListClientHandler(conn *sirencast.Conn) {
 }
 
 func (s *Server) MountExists(name string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	_, ok := s.mounts[name]
 	return ok
 }

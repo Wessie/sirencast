@@ -43,10 +43,12 @@ func WriteHeader(w io.Writer, h http.Header, code int) error {
 		return errors.New("header: invalid status code")
 	}
 	statusCode := strconv.Itoa(code)
-	io.WriteString(w, "HTTP/1.1 "+statusCode+" "+text+"\r\n")
+	io.WriteString(w, "HTTP/1.0 "+statusCode+" "+text+"\r\n")
 
-	if err := h.Write(w); err != nil {
-		return err
+	if h != nil {
+		if err := h.Write(w); err != nil {
+			return err
+		}
 	}
 
 	_, err := io.WriteString(w, "\r\n")
