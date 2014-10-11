@@ -44,7 +44,7 @@ func NewSource(rwc io.ReadWriteCloser, r *http.Request) *Source {
 		req:             r,
 		out:             discardWriter,
 	}
-	go s.readLoop()
+
 	return s
 }
 

@@ -23,6 +23,13 @@ func NewMount(name string) *Mount {
 func (m *Mount) AddSource(s *Source) {
 	m.log("adding source: %v", s)
 	m.sources.Add(s)
+
+	go func() {
+		// read from the source and remove when it returns
+		s.readLoop()
+		m.sources.Remove(s)
+		m.log("removing source: %v", s)
+	}()
 }
 
 // SetMetadata sets the metadata of the source bound to the given
