@@ -75,7 +75,11 @@ func (s *Source) readLoop() {
 	for {
 		n, err := s.Read(b)
 		if err != nil {
-			log.Println("reading error:", err)
+			if err == io.EOF {
+				return
+			}
+
+			log.Println("icecast.source: reading error:", err)
 			return
 		}
 
@@ -83,7 +87,7 @@ func (s *Source) readLoop() {
 		_, err = s.out.Write(b[:n])
 		s.mu.Unlock()
 		if err != nil {
-			log.Println("writing error:", err)
+			log.Println("icecast.source: writing error:", err)
 			return
 		}
 
@@ -91,8 +95,8 @@ func (s *Source) readLoop() {
 }
 
 // SwapOut swaps the source output with the new writer passed in.
-func (s *Source) SwapOut(new io.Writer) {
+func (s *Source) SwapOut(n io.Writer) {
 	s.mu.Lock()
-	s.out = new
+	s.out = n
 	s.mu.Unlock()
 }
