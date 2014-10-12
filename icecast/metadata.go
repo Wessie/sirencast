@@ -2,9 +2,29 @@ package icecast
 
 import "sync"
 
-type Metadata interface {
-	Set(SourceID, string)
-	Get(SourceID) string
+type ReadOnlyMetadata interface {
+	Get() string
+}
+
+func NewMetadata() *Metadata {
+	return new(Metadata)
+}
+
+type Metadata struct {
+	meta string
+	mu   sync.Mutex
+}
+
+func (m *Metadata) Get() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.meta
+}
+
+func (m *Metadata) Set(s string) {
+	m.mu.Lock()
+	m.meta = s
+	m.mu.Unlock()
 }
 
 func NewMetadataContainer() *MetadataContainer {
