@@ -6,24 +6,75 @@ import (
 	"github.com/Wessie/sirencast/util"
 )
 
+type mountEvent int
+
+const (
+	EventPanic mountEvent = iota
+	EventNewSource
+	EventRemoveSource
+	EventNewMetadata
+	EventDestroyMount
+)
+
 // Mount depicts a singular icecast mountpoint. A mountpoint can have
 // many clients (same as plain icecast) and have many sources (not the
 // same as icecast).
 type Mount struct {
-	Name    string
-	sources *Container
-	meta    Metadata
+	Name       string
+	sources    *Container
+	events     chan mountEvent
+	sourceMeta *MetadataContainer
 
-	mw *MultiWriter
+	meta *Metadata
+	mw   *MultiWriter
 }
 
 func NewMount(name string) *Mount {
-	return &Mount{
-		Name:    name,
-		sources: NewContainer(),
-		meta:    NewMetadataContainer(),
-		mw:      NewMultiWriter(),
+	m := Mount{
+		Name:       name,
+		sources:    NewContainer(),
+		sourceMeta: NewMetadataContainer(),
+		meta:       NewMetadata(),
+		mw:         NewMultiWriter(),
+		events:     make(chan mountEvent),
 	}
+	go m.runLoop()
+	return &m
+}
+
+func (m *Mount) runLoop() {
+	var current *Source
+	for {
+		switch <-m.events {
+		case EventNewSource, EventRemoveSource:
+			next := m.sources.Top()
+			if next == nil && current != nil {
+				current.SwapOutput(discardWriter)
+				continue
+			}
+
+			if next != current && current != nil {
+				current.SwapOutput(discardWriter)
+			}
+
+			next.SwapOutput(m.mw)
+			current = next
+		case EventNewMetadata:
+			m.meta.Set(
+				m.sourceMeta.Get(current.ID()),
+			)
+		case EventDestroyMount:
+			return
+		default:
+			panic("icecast.mount: invalid mount event issued")
+		}
+	}
+}
+
+// Close disconnects all sources and clients
+func (m *Mount) Close() {
+
+	return
 }
 
 func (m *Mount) AddClient(c *Client) {
@@ -39,11 +90,13 @@ func (m *Mount) AddClient(c *Client) {
 func (m *Mount) AddSource(s *Source) {
 	m.log("adding source: %v", s)
 	m.sources.Add(s)
+	m.events <- EventNewSource
 
 	go func() {
 		// read from the source and remove when it returns
 		s.readLoop()
 		m.sources.Remove(s)
+		m.events <- EventRemoveSource
 		m.log("removing source: %v", s)
 	}()
 }
@@ -53,7 +106,8 @@ func (m *Mount) AddSource(s *Source) {
 // metadata.
 func (m *Mount) SetMetadata(id SourceID, metadata string) {
 	m.log("setting metadata: id: %s meta: %s", id, metadata)
-	m.meta.Set(id, metadata)
+	m.sourceMeta.Set(id, metadata)
+	m.events <- EventNewMetadata
 	return
 }
 

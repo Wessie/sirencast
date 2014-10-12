@@ -94,8 +94,8 @@ func (s *Source) readLoop() {
 	}
 }
 
-// SwapOut swaps the source output with the new writer passed in.
-func (s *Source) SwapOut(n io.Writer) {
+// SwapOutput swaps the source output with the new writer passed in.
+func (s *Source) SwapOutput(n io.Writer) {
 	s.mu.Lock()
 	s.out = n
 	s.mu.Unlock()
