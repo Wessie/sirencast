@@ -56,35 +56,32 @@ func (s *Server) SourceHandler(conn *sirencast.Conn) {
 
 	line, err := b.ReadString('\n')
 	if err != nil {
-		log.Println("source: invalid http request")
+		log.Println("icecast.source: invalid http request")
 		// TODO: Log errors
 		return
 	}
 
 	method, uri, proto, ok := parseRequestLine(line)
 	if !ok {
-		log.Println("source: invalid http request line")
-		// TODO: Log errors
+		log.Println("icecast.source: invalid http request line")
 		return
 	}
 
 	if method != "SOURCE" {
-		log.Println("source: received non-source method request.")
+		log.Println("icecast.source: received non-source method request.")
 		return
 	}
 
 	u, err := url.ParseRequestURI(uri)
 	if err != nil {
-		log.Println("source: invalid http request uri: ", err)
-		// TODO: Log errors
+		log.Println("icecast.source: invalid http request uri: ", err)
 		return
 	}
 
 	tp := textproto.NewReader(b.Reader)
 	mimeHeader, err := tp.ReadMIMEHeader()
 	if err != nil {
-		log.Println("source: invalid http headers: ", err)
-		// TODO: Log errors
+		log.Println("icecast.source: invalid http headers: ", err)
 		return
 	}
 
@@ -193,6 +190,7 @@ func (s *Server) ClientHandler(conn *sirencast.Conn) {
 
 	c := Client{
 		conn:    conn,
+		bufconn: bufio.NewWriter(conn),
 		meta:    meta,
 		metaint: 16000,
 	}
@@ -201,7 +199,7 @@ func (s *Server) ClientHandler(conn *sirencast.Conn) {
 		"Icy-Metaint": {"16000"},
 	}
 
-	if err := WriteHeader(conn, h, http.StatusOK); err != nil {
+	if err := WriteHeader(c.bufconn, h, http.StatusOK); err != nil {
 		log.Println("icecast.client: failed to write OK header:", err)
 		return
 	}
@@ -231,4 +229,18 @@ func (s *Server) Mount(name string) *Mount {
 	s.mu.Unlock()
 
 	return m
+}
+
+func (s *Server) RemoveMount(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	m, ok := s.mounts[name]
+	if !ok {
+		// we have nothing to do if there was no mount
+		return
+	}
+
+	m.Close()
+	return
 }
