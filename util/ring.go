@@ -7,6 +7,7 @@ import (
 
 // RingBufferSize is the byte slice allocation size
 var RingBufferSize = 16384
+var pool = NewByteSlicePool(RingBufferSize)
 
 // RingBuffer is an io.ReadWriter implementor that drops the
 // oldest write when a reader is too slow.
@@ -16,7 +17,6 @@ type RingBuffer struct {
 	closed    int32
 	readCache []byte
 	buf       chan []byte
-	pool      *ByteSlicePool
 	dropped   uint64
 }
 
@@ -25,8 +25,7 @@ type RingBuffer struct {
 // suggested to wrap the RingBuffer with the bufio package.
 func NewRingBuffer(spots int) *RingBuffer {
 	return &RingBuffer{
-		buf:  make(chan []byte, spots),
-		pool: NewByteSlicePool(RingBufferSize),
+		buf: make(chan []byte, spots),
 	}
 }
 
@@ -44,7 +43,7 @@ func (r *RingBuffer) Write(b []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	c := append(r.pool.Get()[:0], b...)
+	c := append(pool.Get()[:0], b...)
 
 loop:
 	for {
@@ -54,7 +53,7 @@ loop:
 		default:
 			select {
 			case c := <-r.buf:
-				r.pool.Put(c)
+				pool.Put(c)
 			default:
 			}
 		}
@@ -83,6 +82,9 @@ func (r *RingBuffer) Read(p []byte) (n int, err error) {
 	n = copy(p, b)
 
 	r.readCache = b[n:]
+	if len(r.readCache) == 0 {
+		pool.Put(b)
+	}
 
 	return n, nil
 }
