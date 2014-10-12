@@ -16,6 +16,7 @@ type RingBuffer struct {
 	// NOTE: don't add fields above this one
 	closed    int32
 	readCache []byte
+	bufCache  []byte
 	buf       chan []byte
 	dropped   uint64
 }
@@ -38,7 +39,8 @@ func (r *RingBuffer) Write(b []byte) (n int, err error) {
 	}
 
 	// shortcut and we don't want the reader to think
-	// we've reached end of stream
+	// we've reached end of stream by pushing an empty
+	// slice
 	if b == nil {
 		return 0, nil
 	}
@@ -72,6 +74,7 @@ func (r *RingBuffer) Read(p []byte) (n int, err error) {
 	var b = r.readCache
 	if len(b) == 0 {
 		b = <-r.buf
+		r.bufCache = b
 	}
 
 	// Check for a closed channel
@@ -83,7 +86,7 @@ func (r *RingBuffer) Read(p []byte) (n int, err error) {
 
 	r.readCache = b[n:]
 	if len(r.readCache) == 0 {
-		pool.Put(b)
+		pool.Put(r.bufCache)
 	}
 
 	return n, nil
