@@ -83,6 +83,7 @@ func (server *Server) newConn(c net.Conn) (*Conn, error) {
 	if h = server.Detectors.Detect(p); h == nil {
 		return nil, errors.New("Unsupported stream")
 	}
+	p.Stop()
 
 	return &Conn{
 		conn:    c,
