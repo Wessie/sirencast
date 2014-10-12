@@ -180,7 +180,33 @@ func (s *Server) ClientHandler(conn *sirencast.Conn) {
 		return
 	}
 
-	_ = r
+	if !s.MountExists(r.URL.Path) {
+		log.Println("icecast.client: requested non-existant mount")
+		WriteHeader(conn, nil, http.StatusNotFound)
+	}
+
+	var meta bool
+	icymeta := r.Header.Get("icy-metadata")
+	if icymeta == "1" {
+		meta = true
+	}
+
+	c := Client{
+		conn:    conn,
+		meta:    meta,
+		metaint: 16000,
+	}
+
+	h := http.Header{
+		"Icy-Metaint": {"16000"},
+	}
+
+	if err := WriteHeader(conn, h, http.StatusOK); err != nil {
+		log.Println("icecast.client: failed to write OK header:", err)
+		return
+	}
+
+	s.Mount(r.URL.Path).AddClient(&c)
 	return
 }
 

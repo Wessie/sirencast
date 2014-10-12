@@ -1,6 +1,10 @@
 package icecast
 
-import "log"
+import (
+	"log"
+
+	"github.com/Wessie/sirencast/util"
+)
 
 // Mount depicts a singular icecast mountpoint. A mountpoint can have
 // many clients (same as plain icecast) and have many sources (not the
@@ -8,18 +12,30 @@ import "log"
 type Mount struct {
 	Name    string
 	sources *Container
+	meta    Metadata
+
+	mw *MultiWriter
 }
 
 func NewMount(name string) *Mount {
 	return &Mount{
 		Name:    name,
 		sources: NewContainer(),
+		meta:    NewMetadataContainer(),
+		mw:      NewMultiWriter(),
 	}
 }
 
+func (m *Mount) AddClient(c *Client) {
+	m.log("adding client: %v", c)
+
+	r := util.NewRingBuffer(5)
+	m.mw.Add(r)
+	go c.runLoop(r, m.meta)
+}
+
 // AddSource adds a new source to the mountpoint, the mountpoint will
-// be responsible for directing the source to the correct output until
-// the source is removed or disconnects.
+// be responsible for sources output and removal after disconnection
 func (m *Mount) AddSource(s *Source) {
 	m.log("adding source: %v", s)
 	m.sources.Add(s)
@@ -37,6 +53,7 @@ func (m *Mount) AddSource(s *Source) {
 // metadata.
 func (m *Mount) SetMetadata(id SourceID, metadata string) {
 	m.log("setting metadata: id: %s meta: %s", id, metadata)
+	m.meta.Set(id, metadata)
 	return
 }
 
