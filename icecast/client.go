@@ -22,32 +22,41 @@ func (c *Client) runLoop(r io.ReadCloser, m ReadOnlyMetadata) {
 	defer c.conn.Close()
 	defer r.Close()
 
+	// if we have mp3 and metadata to handle we use a specialized loop
+	if c.meta {
+		c.mp3Loop(r, m)
+		return
+	}
+
 	var n, wn int
 	var err error
 	var p = make([]byte, 16384)
 
-	// use a simpler loop when no meta is requested
-	if !c.meta {
-		log.Println("icecast.client: using non-meta loop")
-		for {
-			n, err = r.Read(p)
-			if err != nil {
-				return
-			}
+	log.Println("icecast.client: using non-mp3 loop")
+	for {
+		n, err = r.Read(p)
+		if err != nil {
+			return
+		}
 
-			wn, err = c.bufconn.Write(p[:n])
-			if wn != n || err != nil {
-				return
-			}
+		wn, err = c.bufconn.Write(p[:n])
+		if wn != n || err != nil {
+			return
 		}
 	}
+}
 
+func (c *Client) mp3Loop(r io.ReadCloser, m ReadOnlyMetadata) {
 	log.Println("icecast.client: using meta loop")
 	// we switch to the metaint size for the buffer
 	// this allows us to do a read/write/meta cycle in the loop
 	// with little extra tracking.
-	p = make([]byte, c.metaint)
 	var (
+		n, wn int
+		err   error
+		// buffer for reading into
+		p = make([]byte, c.metaint)
+		// metadata buffer, we can't send more than 255*16+1 metadata blocks
 		metabuf = make([]byte, 255*16+1)
 		// zero is the no-metadata buffer
 		zero = []byte{0}

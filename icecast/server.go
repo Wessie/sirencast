@@ -54,10 +54,10 @@ func (s *Server) SourceHandler(conn *sirencast.Conn) {
 		Closer: conn,
 	}
 
+	// FIXME: this will read something big if a \n is never found
 	line, err := b.ReadString('\n')
 	if err != nil {
 		log.Println("icecast.source: invalid http request")
-		// TODO: Log errors
 		return
 	}
 
@@ -104,6 +104,25 @@ func (s *Server) SourceHandler(conn *sirencast.Conn) {
 		req.Host = req.Header.Get("Host")
 	}
 
+	ct := req.Header.Get("content-type")
+	if ct == "" {
+		log.Println("icecast.source: no content-type given")
+	}
+
+	s.mu.Lock()
+	mount := s.mounts[u.Path]
+	if mount == nil {
+		mount = NewMount(u.Path, ct)
+		s.mounts[u.Path] = mount
+	}
+	s.mu.Unlock()
+
+	if mount != nil && mount.ContentType != ct {
+		log.Println("icecast.source: conflicting mount and source content-type")
+		WriteHeader(b, nil, http.StatusBadRequest)
+		return
+	}
+
 	if err := WriteHeader(b, nil, http.StatusOK); err != nil {
 		log.Println("icecast.source: failed to write OK header:", err)
 		return
@@ -113,7 +132,7 @@ func (s *Server) SourceHandler(conn *sirencast.Conn) {
 		log.Println("icecast.source: failed to flush header:", err)
 	}
 
-	s.Mount(u.Path).AddSource(NewSource(b, req))
+	mount.AddSource(NewSource(b, req))
 	return
 }
 
@@ -126,8 +145,8 @@ func (s *Server) MetadataHandler(conn *sirencast.Conn) {
 
 	query := r.URL.Query()
 
-	mount := query.Get("mount")
-	if mount == "" {
+	name := query.Get("mount")
+	if name == "" {
 		return
 	}
 
@@ -152,7 +171,11 @@ func (s *Server) MetadataHandler(conn *sirencast.Conn) {
 
 	id := NewSourceID(r)
 
-	s.Mount(mount).SetMetadata(id, metadata)
+	// TODO: figure out what to do with metadata when no mount exists.
+	mount := s.Mount(name)
+	if mount != nil {
+		mount.SetMetadata(id, metadata)
+	}
 
 	h := http.Header{
 		"Content-Type":   {"text/xml"},
@@ -177,11 +200,6 @@ func (s *Server) ClientHandler(conn *sirencast.Conn) {
 		return
 	}
 
-	if !s.MountExists(r.URL.Path) {
-		log.Println("icecast.client: requested non-existant mount")
-		WriteHeader(conn, nil, http.StatusNotFound)
-	}
-
 	var meta bool
 	icymeta := r.Header.Get("icy-metadata")
 	if icymeta == "1" {
@@ -195,8 +213,15 @@ func (s *Server) ClientHandler(conn *sirencast.Conn) {
 		metaint: 16000,
 	}
 
+	mount := s.Mount(r.URL.Path)
+	if mount == nil {
+		log.Println("icecast.client: requested non-existant mount")
+		WriteHeader(conn, nil, http.StatusNotFound)
+	}
+
 	h := http.Header{
-		"Icy-Metaint": {"16000"},
+		"Icy-Metaint":  {"16000"},
+		"Content-Type": {mount.ContentType},
 	}
 
 	if err := WriteHeader(c.bufconn, h, http.StatusOK); err != nil {
@@ -204,7 +229,7 @@ func (s *Server) ClientHandler(conn *sirencast.Conn) {
 		return
 	}
 
-	s.Mount(r.URL.Path).AddClient(&c)
+	mount.AddClient(&c)
 	return
 }
 
@@ -221,12 +246,12 @@ func (s *Server) MountExists(name string) bool {
 
 func (s *Server) Mount(name string) *Mount {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	m, ok := s.mounts[name]
 	if !ok {
-		m = NewMount(name)
-		s.mounts[name] = m
+		return nil
 	}
-	s.mu.Unlock()
 
 	return m
 }
@@ -237,10 +262,10 @@ func (s *Server) RemoveMount(name string) {
 
 	m, ok := s.mounts[name]
 	if !ok {
-		// we have nothing to do if there was no mount
 		return
 	}
 
+	delete(s.mounts, name)
 	m.Close()
 	return
 }

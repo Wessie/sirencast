@@ -20,6 +20,10 @@ const (
 // many clients (same as plain icecast) and have many sources (not the
 // same as icecast).
 type Mount struct {
+	// ContentType is the kind of format we're exposing on this mount
+	// (e.g. audio/mpeg3, audio/ogg)
+	ContentType string
+	// Name is the public name of the mount
 	Name       string
 	sources    *Container
 	events     chan mountEvent
@@ -29,14 +33,15 @@ type Mount struct {
 	mw   *MultiWriter
 }
 
-func NewMount(name string) *Mount {
+func NewMount(name string, content string) *Mount {
 	m := Mount{
-		Name:       name,
-		sources:    NewContainer(),
-		sourceMeta: NewMetadataContainer(),
-		meta:       NewMetadata(),
-		mw:         NewMultiWriter(),
-		events:     make(chan mountEvent),
+		ContentType: content,
+		Name:        name,
+		sources:     NewContainer(),
+		sourceMeta:  NewMetadataContainer(),
+		meta:        NewMetadata(),
+		mw:          NewMultiWriter(),
+		events:      make(chan mountEvent),
 	}
 	go m.runLoop()
 	return &m
@@ -60,6 +65,9 @@ func (m *Mount) runLoop() {
 			next.SwapOutput(m.mw)
 			current = next
 		case EventNewMetadata:
+			if current == nil {
+				continue
+			}
 			m.meta.Set(
 				m.sourceMeta.Get(current.ID()),
 			)

@@ -4,7 +4,7 @@ import "io"
 
 func NewMultiWriter() *MultiWriter {
 	return &MultiWriter{
-		pending: make(chan io.Writer, 5),
+		pending: make(chan io.Writer, 64),
 		w:       make([]io.Writer, 0),
 	}
 }
