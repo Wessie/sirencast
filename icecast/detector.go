@@ -53,7 +53,9 @@ func (s *Server) Detect(r io.Reader) sirencast.ConnHandler {
 		return s.MetadataHandler
 	}
 
-	// Check for a new client
+	// this is racey because the mount could not exist before the handler
+	// is actually called, this is okay in this case because the handler
+	// also checks for this condition.
 	if s.MountExists(u.Path) {
 		return s.ClientHandler
 	}

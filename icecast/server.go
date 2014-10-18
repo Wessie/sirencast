@@ -201,8 +201,7 @@ func (s *Server) ClientHandler(conn *sirencast.Conn) {
 	}
 
 	var meta bool
-	icymeta := r.Header.Get("icy-metadata")
-	if icymeta == "1" {
+	if r.Header.Get("icy-metadata") == "1" {
 		meta = true
 	}
 
@@ -217,6 +216,7 @@ func (s *Server) ClientHandler(conn *sirencast.Conn) {
 	if mount == nil {
 		log.Println("icecast.client: requested non-existant mount")
 		WriteHeader(conn, nil, http.StatusNotFound)
+		return
 	}
 
 	h := http.Header{
